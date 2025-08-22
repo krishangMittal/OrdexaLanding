@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Connection Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Supabase Connection Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Library Check</h2>
+        <button onclick="checkLibrary()">Check Supabase Library</button>
+        <div id="library-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Client Creation</h2>
+        <button onclick="createClient()">Create Supabase Client</button>
+        <div id="client-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Connection Test</h2>
+        <button onclick="testConnection()">Test Database Connection</button>
+        <div id="connection-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. Table Check</h2>
+        <button onclick="checkTable()">Check Table Structure</button>
+        <div id="table-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>5. Insert Test</h2>
+        <button onclick="testInsert()">Test Data Insert</button>
+        <div id="insert-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>6. Full Test</h2>
+        <button onclick="runFullTest()">Run Complete Test</button>
+        <div id="full-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Console Log</h2>
+        <button onclick="clearLog()">Clear Log</button>
+        <div id="console-log" class="log"></div>
+    </div>
+
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://kcdqdhuntoyknmkuarcy.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZHFkaHVudG95a25ta3VhcmN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NDM1NDIsImV4cCI6MjA3MTQxOTU0Mn0.B6rxq59JZdhGvETj4wzUx2kydqrzlgMh5U07N92qWfc'
+        
+        let supabase = null
+        let testResults = []
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString()
+            const logEntry = `[${timestamp}] ${message}\n`
+            const logDiv = document.getElementById('console-log')
+            logDiv.textContent += logEntry
+            logDiv.scrollTop = logDiv.scrollHeight
+            
+            console.log(message)
+            testResults.push({ message, type, timestamp })
+        }
+
+        function clearLog() {
+            document.getElementById('console-log').textContent = ''
+            testResults = []
+        }
+
+        function updateResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId)
+            element.innerHTML = `<span class="${type}">${message}</span>`
+        }
+
+        // Test 1: Check if Supabase library is loaded
+        function checkLibrary() {
+            log('🔍 Checking Supabase library...')
+            
+            if (typeof window.supabase === 'undefined') {
+                const message = '❌ Supabase library not loaded! Check the CDN script.'
+                log(message, 'error')
+                updateResult('library-result', message, 'error')
+                return false
+            } else {
+                const message = '✅ Supabase library loaded successfully'
+                log(message, 'success')
+                updateResult('library-result', message, 'success')
+                return true
+            }
+        }
+
+        // Test 2: Create Supabase client
+        function createClient() {
+            log('🔍 Creating Supabase client...')
+            
+            if (!checkLibrary()) {
+                updateResult('client-result', '❌ Cannot create client - library not loaded', 'error')
+                return false
+            }
+            
+            try {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                    auth: {
+                        autoRefreshToken: false,
+                        persistSession: false,
+                        detectSessionInUrl: false
+                    }
+                })
+                
+                const message = '✅ Supabase client created successfully'
+                log(message, 'success')
+                updateResult('client-result', message, 'success')
+                return true
+            } catch (error) {
+                const message = `❌ Failed to create Supabase client: ${error.message}`
+                log(message, 'error')
+                updateResult('client-result', message, 'error')
+                return false
+            }
+        }
+
+        // Test 3: Test basic connection
+        async function testConnection() {
+            log('🔍 Testing database connection...')
+            
+            if (!supabase) {
+                const message = '❌ Cannot test connection - client not created'
+                log(message, 'error')
+                updateResult('connection-result', message, 'error')
+                return false
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('waitlist_emails')
+                    .select('count(*)', { count: 'exact', head: true })
+                
+                if (error) {
+                    const message = `❌ Connection test failed: ${error.message}`
+                    log(message, 'error')
+                    updateResult('connection-result', message, 'error')
+                    return false
+                } else {
+                    const message = `✅ Connection successful! Count: ${data}`
+                    log(message, 'success')
+                    updateResult('connection-result', message, 'success')
+                    return true
+                }
+            } catch (err) {
+                const message = `❌ Connection error: ${err.message}`
+                log(message, 'error')
+                updateResult('connection-result', message, 'error')
+                return false
+            }
+        }
+
+        // Test 4: Check table structure
+        async function checkTable() {
+            log('🔍 Checking table structure...')
+            
+            if (!supabase) {
+                const message = '❌ Cannot check table - client not created'
+                log(message, 'error')
+                updateResult('table-result', message, 'error')
+                return false
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('waitlist_emails')
+                    .select('*')
+                    .limit(1)
+                
+                if (error) {
+                    if (error.code === 'PGRST116') {
+                        const message = '❌ Table "waitlist_emails" does not exist'
+                        log(message, 'error')
+                        updateResult('table-result', message, 'error')
+                    } else {
+                        const message = `❌ Table check failed: ${error.message}`
+                        log(message, 'error')
+                        updateResult('table-result', message, 'error')
+                    }
+                    return false
+                } else {
+                    const message = `✅ Table exists! Sample data: ${JSON.stringify(data, null, 2)}`
+                    log(message, 'success')
+                    updateResult('table-result', message, 'success')
+                    return true
+                }
+            } catch (err) {
+                const message = `❌ Table check error: ${err.message}`
+                log(message, 'error')
+                updateResult('table-result', message, 'error')
+                return false
+            }
+        }
+
+        // Test 5: Test data insertion
+        async function testInsert() {
+            log('🔍 Testing data insertion...')
+            
+            if (!supabase) {
+                const message = '❌ Cannot test insert - client not created'
+                log(message, 'error')
+                updateResult('insert-result', message, 'error')
+                return false
+            }
+            
+            try {
+                const testEmail = `test-${Date.now()}@example.com`
+                log(`📧 Testing with email: ${testEmail}`)
+                
+                const { data, error } = await supabase
+                    .from('waitlist_emails')
+                    .insert([{ 
+                        email: testEmail,
+                        source: 'test',
+                        metadata: { test: true, timestamp: new Date().toISOString() }
+                    }])
+                    .select()
+                
+                if (error) {
+                    const message = `❌ Insert test failed: ${error.message}`
+                    log(message, 'error')
+                    updateResult('insert-result', message, 'error')
+                    return false
+                } else {
+                    const message = `✅ Insert test successful! Data: ${JSON.stringify(data, null, 2)}`
+                    log(message, 'success')
+                    updateResult('insert-result', message, 'success')
+                    
+                    // Clean up test record
+                    log('🧹 Cleaning up test record...')
+                    await supabase
+                        .from('waitlist_emails')
+                        .delete()
+                        .eq('email', testEmail)
+                    log('✅ Test record cleaned up')
+                    
+                    return true
+                }
+            } catch (err) {
+                const message = `❌ Insert test error: ${err.message}`
+                log(message, 'error')
+                updateResult('insert-result', message, 'error')
+                return false
+            }
+        }
+
+        // Run complete test suite
+        async function runFullTest() {
+            log('🚀 Starting complete test suite...')
+            updateResult('full-result', '🔄 Running tests...', 'info')
+            
+            const results = []
+            
+            // Run all tests in sequence
+            results.push(await checkLibrary())
+            results.push(await createClient())
+            results.push(await testConnection())
+            results.push(await checkTable())
+            results.push(await testInsert())
+            
+            const passed = results.filter(r => r === true).length
+            const total = results.length
+            
+            if (passed === total) {
+                const message = `🎉 All tests passed! (${passed}/${total})`
+                log(message, 'success')
+                updateResult('full-result', message, 'success')
+            } else {
+                const message = `⚠️ Some tests failed. (${passed}/${total} passed)`
+                log(message, 'error')
+                updateResult('full-result', message, 'error')
+            }
+            
+            log('🏁 Test suite completed')
+        }
+
+        // Auto-run basic checks on page load
+        window.addEventListener('load', () => {
+            log('📱 Page loaded, running initial checks...')
+            checkLibrary()
+        })
+    </script>
+</body>
+</html>
